@@ -18,13 +18,13 @@ module.exports = function (grunt) {
         // Node.JS side tests
         mochaTest: {
             nodejs: {
-                src: ['test/cdaptracker-spec.js']
+                src: ['test/authmanager-spec.js']
             },
         },
         concat: {
             browser_dist: {
-                src: ['src/*.js'],
-                dest: 'tmp/browser/cask-client.js'
+                src: ['src/base64.js', 'src/authmanager.js'],
+                dest: 'tmp/browser/cask-auth-manager.js'
             },
         },
         copy: {
@@ -32,19 +32,19 @@ module.exports = function (grunt) {
                 expand: true,
                 cwd: 'src/nodejs/',
                 src: ['*.json', '*.js'],
-                dest: 'dist/nodejs/cask-client/'
+                dest: 'dist/nodejs/cask-auth-manager/'
             },
             nodejs_src: {
                 expand: true,
                 cwd: 'src/',
-                src: '*.js',
-                dest: 'dist/nodejs/cask-client/'
+                src: ['authmanager.js'],
+                dest: 'dist/nodejs/cask-auth-manager/'
             },
         },
         uglify: {
             browser_dist: {
                 src: '<%= concat.browser_dist.dest %>',
-                dest: 'dist/browser/cask-client.min.js'
+                dest: 'dist/browser/cask-auth-manager.min.js'
             }
         }
     });

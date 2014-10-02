@@ -33,7 +33,7 @@
 }(function (target, require) {
     'use strict';
 
-    target['CDAPAuthManager'] = target['CDAPAuthManager'] || function (hostname, port, ssl, username, password) {
+    target['CDAPAuthManager'] = target['CDAPAuthManager'] || function (username, password, hostname, port, ssl) {
         if (!username || !password) {
             throw new Error('"username" and "password" have to be defined');
         }
@@ -59,10 +59,10 @@
         if ('undefined' !== typeof window) {
             httpConnection = new XMLHttpRequest();
         } else {
-            httpConnection = require('node-curl');
+            httpConnection = require('httpsync');
         }
 
-        var getAuthHeaders = function () {
+        var getAuthHeadersBrowser = function () {
                 var obj = {};
 
                 obj[AUTH_HEADER_NAME] = AUTH_TYPE + ' ' + Base64.encode(
@@ -71,33 +71,50 @@
 
                 return obj;
             },
+            getAuthHeadersNode = function () {
+                var obj = {};
+
+                obj[AUTH_HEADER_NAME] = AUTH_TYPE + ' ' + new Buffer(
+                        connectionInfo.user + ':' + connectionInfo.pass
+                ).toString('base64');
+
+                return obj;
+            },
+            getAuthHeaders = ('undefined' !== typeof window) ? getAuthHeadersBrowser : getAuthHeadersNode,
             baseUrl = function () {
                 return [
                     connectionInfo.ssl ? 'https' : 'http',
                     '://', connectionInfo.host,
-                    ':', connectionInfo.port, '/'
+                    ':', connectionInfo.port + '/'
                 ].join('');
             },
             fetchAuthUrlBrowser = function () {
-                httpConnection.onreadystatechange = function (response) {
-                    if (4 === httpConnection.readyState && 401 === httpConnection.status) {
-                        authUrls = JSON.parse(httpConnection.responseText)['auth_uri'];
-                    }
-                };
-
                 httpConnection.open('GET', baseUrl(), false);
                 httpConnection.send();
+
+                if (4 === httpConnection.readyState && 401 === httpConnection.status) {
+                    authUrls = JSON.parse(httpConnection.responseText)['auth_uri'];
+                }
             },
             fetchAuthUrlNode = function () {
-                httpConnection(baseUrl(), function (response) {
-                    if (401 === this.status) {
-                        authUrls = JSON.parse(this.body)['auth_uri'];
-                    }
-                });
+                var request = httpConnection.request({
+                        url: baseUrl(),
+                        method: 'GET'
+                    }),
+                    response = request.end();
+
+                if (401 === response.status) {
+                    authUrls = JSON.parse(response.data)['auth_uri'];
+                }
+
             },
             fetchAuthUrl = ('undefined' !== typeof window) ? fetchAuthUrlBrowser : fetchAuthUrlNode,
             getAuthUrl = function () {
-                var authUrl = null;
+                var authUrl;
+
+                if (!authUrls) {
+                    return '';
+                }
 
                 if (1 === authUrls.length) {
                     authUrl = authUrls[0];
@@ -114,9 +131,14 @@
                 return !!authUrls;
             },
             fetchTokenInfoBrowser = function () {
-                var authUrl = getAuthUrl();
+                var authUrl = getAuthUrl(),
+                    authHeaders = getAuthHeaders();
 
-                httpConnection.onreadystatechange = function (response) {
+                httpConnection.open('GET', authUrl, false);
+                httpConnection.setRequestHeader(AUTH_HEADER_NAME, authHeaders[AUTH_HEADER_NAME]);
+                if (authUrl) {
+                    httpConnection.send();
+
                     if (4 === httpConnection.readyState && 200 === httpConnection.status) {
                         var tokenData = JSON.parse(httpConnection.responseText);
 
@@ -124,36 +146,31 @@
                         tokenInfo.type = tokenData.token_type;
                         tokenInfo.expirationDate = (new Date()).getTime() + (tokenData.expires_in * 1000);
                     }
-                };
-
-                httpConnection.setRequestHeader(AUTH_HEADER_NAME, getAuthHeaders()[AUTH_HEADER_NAME]);
-                httpConnection.open('GET', authUrl, false);
-                if (authUrl) {
-                    httpConnection.send();
                 }
             },
             fetchTokenInfoNode = function () {
                 var authUrl = getAuthUrl();
 
                 if (authUrl) {
-                    httpConnection.setopt('CURLOPT_HEADER', JSON.stringify(getAuthHeaders()));
-                    httpConnection(authUrl, function (response) {
-                        if (200 === reponse.status) {
-                            var tokenData = JSON.parse(httpConnection.responseText);
+                    var request = httpConnection.request({
+                            url: baseUrl() + authUrl,
+                            method: 'GET',
+                            headers: getAuthHeaders()
+                        }),
+                        response = request.end();
 
-                            tokenInfo.value = tokenData.access_token;
-                            tokenInfo.type = tokenData.token_type;
-                            tokenInfo.expirationDate = (new Date()).getTime() + (tokenData.expires_in * 1000);
-                        }
-                    });
-                    httpConnection.setopt('CURLOPT_HEADER', '{}');
+                    if (200 === response.status) {
+                        var tokenData = JSON.parse(response.data);
+
+                        tokenInfo.value = tokenData.access_token;
+                        tokenInfo.type = tokenData.token_type;
+                        tokenInfo.expirationDate = (new Date()).getTime() + (tokenData.expires_in * 1000);
+                    }
                 }
             },
             fetchToken = ('undefined' !== typeof window) ? fetchTokenInfoBrowser : fetchTokenInfoNode,
             getTokenImpl = function () {
-                if (tokenInfo.expirationDate &&
-                    (TOKEN_EXPIRATION_TIMEOUT >= (tokenInfo.expirationDate - (new Date()).getTime()))
-                    ) {
+                if ((TOKEN_EXPIRATION_TIMEOUT >= (tokenInfo.expirationDate - (new Date()).getTime()))) {
                     fetchToken();
                 }
 

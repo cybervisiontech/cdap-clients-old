@@ -1,0 +1,5 @@
+{
+    "name" : "cask-auth-manager",
+    "version": "1.0.0",
+    "main" : "authmanager.js"
+}
