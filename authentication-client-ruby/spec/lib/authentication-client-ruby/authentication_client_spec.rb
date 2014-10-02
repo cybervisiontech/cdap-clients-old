@@ -17,7 +17,7 @@ require 'spec_helper'
 describe CDAPIngest::AuthenticationClient do
   let(:authentication_client) { CDAPIngest::AuthenticationClient.new }
   before do
-    authentication_client.set_connection_info('127.0.0.1', 11_000, false)
+    authentication_client.set_connection_info('127.0.0.1', 11000, false)
   end
 
   it 'instance check' do

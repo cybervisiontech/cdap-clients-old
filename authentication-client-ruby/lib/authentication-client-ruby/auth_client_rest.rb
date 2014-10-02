@@ -18,15 +18,36 @@ require 'yaml'
 module CDAPIngest
   ###
   # The helper class for providing http requests
-  class Rest
+  class AuthClientRest
     include HTTParty
 
+    def get(url, options = {}, ssl_cert_check, &block)
+      request('get', url, options , ssl_cert_check, &block)
+    end
+
+    def put(url, options = {}, ssl_cert_check, &block)
+      request('put', url, options , ssl_cert_check, &block)
+    end
+
+    def post(url, options = {}, ssl_cert_check, &block)
+      request('post', url, options, ssl_cert_check, &block)
+    end
+
+    private
     def request(method, url, options = {}, ssl_cert_check, &block)
       method.downcase!
       # send request
       HTTParty::Basement.default_options.update(verify: ssl_cert_check)
-      method == 'get' ? response =
-          self.class.get(url, options, &block ) : fail('Unknown http method')
+      case method
+        when 'get'
+          response = self.class.get(url, options, &block)
+        when 'post'
+          response = self.class.post(url, options, &block)
+        when 'put'
+          response = self.class.put(url, options, &block)
+        else
+          raise 'Unknown http method'
+      end
       # process response
       unless response.response.is_a?(Net::HTTPSuccess)
         error = ResponseError.new response
@@ -35,7 +56,7 @@ module CDAPIngest
           fail error, 'The request had a combination of
                           parameters that is not recognized'
         when 401
-          fail error, 'Invalid username or password' unless url =~ /auth_uri/
+          fail error, 'Invalid username or password' unless url =~ /ping/
         when 403
           fail error, 'The request was authenticated but
                           the client does not have permission'

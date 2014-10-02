@@ -14,14 +14,14 @@
 
 require 'spec_helper'
 
-describe CDAPIngest::Rest do
+describe CDAPIngest::AuthClientRest do
 
-  let(:rest) { VCR.use_cassette('rest') { CDAPIngest::Rest.new } }
+  let(:rest) { VCR.use_cassette('rest') { CDAPIngest::AuthClientRest.new } }
 
-  it { expect(rest).to be_a CDAPIngest::Rest }
+  it { expect(rest).to be_a CDAPIngest::AuthClientRest }
 
-  it { expect(CDAPIngest::Rest).to respond_to(:new) }
+  it { expect(CDAPIngest::AuthClientRest).to respond_to(:new) }
 
-  it { expect(rest).to respond_to(:request) }
+  it { expect(rest).to respond_to(:get) }
 
 end

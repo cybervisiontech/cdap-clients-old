@@ -19,6 +19,6 @@ module CDAPIngest
 end
 
 require 'authentication-client-ruby/authentication_client'
-require 'authentication-client-ruby/rest'
+require 'authentication-client-ruby/auth_client_rest'
 require 'authentication-client-ruby/access_token'
 require 'authentication-client-ruby/version'

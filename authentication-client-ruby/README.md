@@ -36,9 +36,9 @@ The Authentication Client Ruby API is for fetching the access token from the aut
  
  ```
  # config/auth.yml
- username: 'user'
- password: 'secret'
- ssl_cert_check: true
+ security.auth.client.username: 'user'
+ security.auth.client.password: 'secret'
+ security.auth.client.ssl_cert_check: true
  ```  
  
  Load configuration from file:

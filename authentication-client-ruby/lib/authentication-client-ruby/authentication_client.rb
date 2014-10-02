@@ -14,7 +14,7 @@
 
 module CDAPIngest
   ###
-  # The client interface to interact with services provided by stream endpoint.
+  # The client interface to fetch access token from the authentication server
   class AuthenticationClient
     attr_reader :rest
     attr_accessor :username
@@ -24,7 +24,7 @@ module CDAPIngest
     SPARSE_TIME_IN_MILLIS = 5000
 
     def initialize
-      @rest = Rest.new
+      @rest = AuthClientRest.new
       @base_url = nil
       @auth_url = nil
       @is_auth_enabled = nil
@@ -34,9 +34,9 @@ module CDAPIngest
 
     def configure(path)
       config = YAML.load_file(path)
-      @username = config['username']
-      @password = config['password']
-      @ssl_cert_check = config['ssl_cert_check']
+      @username = config['security.auth.client.username']
+      @password = config['security.auth.client.password']
+      @ssl_cert_check = config['security.auth.client.ssl_cert_check']
     end
 
     def set_connection_info(host, port, ssl)
@@ -48,12 +48,12 @@ module CDAPIngest
     end
 
     def fetch_auth_url
-      req = rest.request 'get', @base_url + '/auth_uri', @ssl_cert_check
-      auth_url_array = req ['auth_uri']
-      if  auth_url_array.length > 1
-        @auth_url = auth_url_array [Random.rand(auth_url_array.length - 1)]
+      req = rest.get(@base_url + '/v2/ping', @ssl_cert_check)
+      auth_urls = req ['auth_uri']
+      if auth_urls.empty?
+        fail EmptyAuthUrlException 'Empty authentication URI list was received in the server response.'
       else
-        @auth_url = auth_url_array[0]
+        @auth_url = auth_urls.sample()
       end
     end
 
@@ -65,12 +65,12 @@ module CDAPIngest
       if  @access_token.nil? || token_expired?
         request_time = Time.now.to_f * 1000
         options = { basic_auth: { username: @username, password: @password } }
-        response = rest.request('get', @auth_url, options, @ssl_cert_check)
+        response = rest.get(@auth_url, options, @ssl_cert_check)
         token_value = response['access_token']
         token_type  = response['token_type']
         expires_in = response['expires_in']
         @expiration_time  = request_time + expires_in - SPARSE_TIME_IN_MILLIS
-        @access_token = AccessToken.new(token_value, token_type, expires_in,)
+        @access_token = AccessToken.new(token_value, token_type, expires_in)
       end
     end
 
@@ -89,3 +89,5 @@ module CDAPIngest
 end
 
 class IllegalStateException < Exception; end
+
+class EmptyAuthUrlException < Exception; end
