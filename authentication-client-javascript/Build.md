@@ -6,7 +6,7 @@ to set up all dependencies use next shell commands:
 
 ```
 # npm install -g grunt-cli
-# npm unstall -g bower
+# npm install -g bower
 $ npm install
 $ bower install
 ```
